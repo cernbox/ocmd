@@ -14,4 +14,4 @@
 .glide/
 
 ./ocmd
-./vendor/
+vendor/
