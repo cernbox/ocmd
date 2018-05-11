@@ -14,4 +14,4 @@ OpenCloudMesh Daemon
 ## Run
 - `touch ocmd.yaml`
 - ./ocmd  &
-- `curl localhost:8888/ocm/shares -X POST -i --data-binary @new-share.json ` 
+- `curl localhost:8888/ocm/shares -X POST -i --data-binary @new-share-incoming.json ` 

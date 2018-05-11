@@ -1,0 +1,13 @@
+{
+    "description": "This is the latest Airbus rocket documentation",
+    "name": "airbus-docs",
+    "owner": "kuba@airbus.com",
+    "protocol": {
+        "name": "webdav",
+        "options": {
+            "access_token": "7c084226",
+            "uri": "http://localhost:7777/ocm/webdav/eos/scratch/user/k/kuba/airbus-docs"
+        }
+    },
+    "shareWith": "gonzalhu@nasa.com"
+}

@@ -40,7 +40,7 @@ func (sm *shareManager) NewShare(ctx context.Context, share *api.Share) (*api.Sh
 		return nil, err
 	}
 	sm.Lock()
-	sm.Unlock()
+	defer sm.Unlock()
 
 	newID := fmt.Sprintf("%d", len(sm.shares))
 	share.ID = newID
@@ -75,8 +75,6 @@ func (s *shareManager) validateShare(ctx context.Context, share *api.Share) erro
 		return api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("protocol")
 	} else if share.Protocol.Name == "" {
 		return api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("protocol.name")
-	} else if share.Protocol.Options == nil {
-		return api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("protocol.options")
 	} else if share.Protocol.Options == nil {
 		return api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("protocol.options")
 	} else if err := s.um.UserExists(ctx, share.ShareWith); err != nil {

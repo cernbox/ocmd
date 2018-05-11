@@ -76,8 +76,12 @@ type Share struct {
 
 	// TrustedService stores the identity (domain) of the service that can send shares to our users.
 	TrustedService string `json:"trustedService"`
-	// Incoming specifies if the share is an incoming share ( coming from other ocm instance) or not (us creating it).
-	Incoming bool `json:"incoming"`
+}
+
+func (s *Share) JSON() []byte {
+	b, _ := json.MarshalIndent(s, "", "   ")
+	return b
+
 }
 
 type ProtocolInfo struct {
@@ -97,13 +101,25 @@ type UserManager interface {
 }
 
 type ProviderAuthorizer interface {
-	IsProviderAllowed(ctx context.Context, providerID string) error
+	ListProviders(ctx context.Context) ([]*ProviderInfo, error)
+	IsProviderAllowed(ctx context.Context, domain string) error
+	GetProviderInfoByDomain(ctx context.Context, domain string) (*ProviderInfo, error)
+}
+
+type ProviderInfo struct {
+	Domain string
+	URL    *url.URL
 }
 
 type ShareManager interface {
 	GetShare(ctx context.Context, id string) (*Share, error)
 	GetShares(ctx context.Context) ([]*Share, error)
 	NewShare(ctx context.Context, share *Share) (*Share, error)
+}
+
+type InternalShareManager interface {
+	NewInternalShare(ctx context.Context, share *Share) (*Share, error)
+	CommitInternalShare(ctx context.Context, providerID, consumerID string) (*Share, error)
 }
 
 type TokenManager interface {
