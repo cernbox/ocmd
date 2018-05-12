@@ -14,9 +14,6 @@ OpenCloudMesh Daemon
 ## Run
 - `go build`
 - `echo "log-level: debug" > ocmd.yaml`
-- ./ocmd  &
-- `curl localhost:8888/ocm/shares -X POST -i --data-binary @new-share-incoming.json ` 
-
 - Put some test domains in /etc/hosts to work from the same box.
 
 ```
@@ -39,7 +36,9 @@ curl -i http://localhost:7777/internal/shares -X POST  --data-binary @new-intern
 
 ## TODO
 
-Implement the *api/internal_share_manager_python* and *api/share_manager_python* plugins.
-Use --internal-share-manager "python" and --share-manager "python" flags to load these plugins.
-See ./ocmd -h for more help.
+Implement the **api/internal_share_manager_python** and **api/share_manager_python** plugins.
+
+Use **--internal-share-manager "python"** and **--share-manager "python"** flags to load these plugins.
+
+See `./ocmd -h` for more help.
 
