@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -287,7 +288,10 @@ func NewInternalShare(logger *zap.Logger, ism api.InternalShareManager, pa api.P
 		logger.Info("provider info", zap.String("domain", providerInfo.Domain), zap.String("ocm-endpoint", providerInfo.URL.String()))
 
 		reqBody := bytes.NewReader(internalShare.JSON())
-		client := http.Client{}
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := http.Client{Transport: tr}
 		req, err := http.NewRequest("POST", providerInfo.URL.String()+"/shares", reqBody)
 		if err != nil {
 			logger.Error("error preparing outgoing request for new share", zap.Error(err))
