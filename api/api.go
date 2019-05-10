@@ -150,18 +150,19 @@ type MySQLOptions struct {
 }
 
 type Info struct {
-	Enabled    bool         `json:"enabled"`
-	APIVersion string       `json:"apiVersion"`
-	EndPoint   string       `json:"endPoint"`
-	ShareTypes []ShareTypes `json:"shareTypes"`
+	Enabled       bool            `json:"enabled"`
+	APIVersion    string          `json:"apiVersion"`
+	EndPoint      string          `json:"endPoint"`
+	ResourceTypes []ResourceTypes `json:"resourceTypes"`
 }
 
-type ShareTypes struct {
-	Name      string              `json:"name"`
-	Protocols ShareTypesProtocols `json:"protocols"`
+type ResourceTypes struct {
+	Name       string                 `json:"name"`
+	ShareTypes []string               `json:"shareTypes"`
+	Protocols  ResourceTypesProtocols `json:"protocols"`
 }
 
-type ShareTypesProtocols struct {
+type ResourceTypesProtocols struct {
 	Webdav string `json:"webdav"`
 }
 
