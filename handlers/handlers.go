@@ -184,7 +184,7 @@ func AddProvider(logger *zap.Logger, pa api.ProviderAuthorizer) http.Handler {
 		}
 		client := &http.Client{Transport: tr}
 
-		url := fmt.Sprintf("https://%s/ocm-provider/", domain)
+		url := fmt.Sprintf("%s/ocm-provider/", domain)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			logger.Error("", zap.Error(err))
@@ -220,11 +220,14 @@ func AddProvider(logger *zap.Logger, pa api.ProviderAuthorizer) http.Handler {
 			return
 		}
 
+		domain_without_protocol := strings.Replace(domain, "http://", "", 1)
+		domain_without_protocol = strings.Replace(domain_without_protocol, "https://", "", 1)
+
 		internalProvider := &api.ProviderInfo{
-			Domain:         domain,
+			Domain:         domain_without_protocol,
 			APIVersion:     apiInfo.APIVersion,
 			APIEndPoint:    apiInfo.EndPoint,
-			WebdavEndPoint: apiInfo.ResourceTypes[0].Protocols.Webdav, //TODO check this instead of hardcode + support for multiple webdav
+			WebdavEndPoint: domain + apiInfo.ResourceTypes[0].Protocols.Webdav, //TODO check this instead of hardcode + support for multiple webdav
 		}
 
 		pa.AddProvider(ctx, internalProvider)
