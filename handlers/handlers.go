@@ -153,7 +153,7 @@ func GetOCMInfo(logger *zap.Logger, host string) http.Handler {
 				Name:       "file",
 				ShareTypes: []string{"user"},
 				Protocols: api.ResourceTypesProtocols{
-					Webdav: fmt.Sprintf("https://%s/cernbox/ocm_webdav", host),
+					Webdav: "/cernbox/ocm_webdav",
 				},
 			}},
 		}
@@ -161,6 +161,7 @@ func GetOCMInfo(logger *zap.Logger, host string) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(info.JSON())
+		// w.Write([]byte("{\"enabled\":true,\"apiVersion\":\"1.0-proposal1\",\"endPoint\":\"https:\\/\\/cernbox.up2u.cern.ch\\/cernbox\\/ocm\",\"resourceTypes\":[{\"name\":\"file\",\"shareTypes\":[\"user\",\"group\"],\"protocols\":{\"webdav\":\"\\/cernbox\\/ocm_webdav\"}}]}"))
 
 	})
 }
@@ -247,63 +248,76 @@ func AddShare(logger *zap.Logger, sm api.ShareManager, pa api.ProviderAuthorizer
 
 		share := &api.Share{}
 		err = json.Unmarshal(body, share)
+		// if err != nil {
+		// 	logger.Error("error unmarshaling body into share, trying again", zap.Error(err))
+
+		// 	// OC send providerId as int....
+		// 	type Share2 struct {
+		// 		ShareWith         string            `json:"shareWith"`
+		// 		Name              string            `json:"name"`
+		// 		Description       string            `json:"description"`
+		// 		ProviderID        int               `json:"providerId"`
+		// 		Owner             string            `json:"owner"`
+		// 		Sender            string            `json:"sender"`
+		// 		OwnerDisplayName  string            `json:"ownerDisplayName"`
+		// 		SenderDisplayName string            `json:"senderDisplayName"`
+		// 		ShareType         string            `json:"shareType"`
+		// 		ResourceType      string            `json:"resourceType"`
+		// 		Protocol          *api.ProtocolInfo `json:"protocol"`
+
+		// 		ID        string `json:"id,omitempty"`
+		// 		CreatedAt string `json:"createdAt,omitempty"`
+		// 	}
+		// 	share2 := &Share2{}
+		// 	err = json.Unmarshal(body, share2)
+
+		// 	if err != nil {
+		// 		logger.Error("error unmarshaling body into share", zap.Error(err))
+		// 		w.Header().Set("Content-Type", "application/json")
+		// 		w.WriteHeader(http.StatusBadRequest)
+		// 		ae := api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("body is not json")
+		// 		w.Write(ae.JSON())
+		// 		return
+		// 	}
+
+		// 	share = &api.Share{
+		// 		ShareWith:         share2.ShareWith,
+		// 		Name:              share2.Name,
+		// 		Description:       share2.Description,
+		// 		ProviderID:        strconv.Itoa(share2.ProviderID),
+		// 		Owner:             share2.Owner,
+		// 		Sender:            share2.Sender,
+		// 		OwnerDisplayName:  share2.OwnerDisplayName,
+		// 		SenderDisplayName: share2.SenderDisplayName,
+		// 		ShareType:         share2.ShareType,
+		// 		ResourceType:      share2.ResourceType,
+		// 		Protocol:          share2.Protocol,
+		// 		ID:                share2.ID,
+		// 		CreatedAt:         share2.CreatedAt,
+		// 	}
+
+		// }
+
 		if err != nil {
-			logger.Error("error unmarshaling body into share, trying again", zap.Error(err))
-
-			// OC send providerId as int....
-			type Share2 struct {
-				ShareWith         string            `json:"shareWith"`
-				Name              string            `json:"name"`
-				Description       string            `json:"description"`
-				ProviderID        int               `json:"providerId"`
-				Owner             string            `json:"owner"`
-				Sender            string            `json:"sender"`
-				OwnerDisplayName  string            `json:"ownerDisplayName"`
-				SenderDisplayName string            `json:"senderDisplayName"`
-				ShareType         string            `json:"shareType"`
-				ResourceType      string            `json:"resourceType"`
-				Protocol          *api.ProtocolInfo `json:"protocol"`
-
-				ID        string `json:"id,omitempty"`
-				CreatedAt string `json:"createdAt,omitempty"`
-			}
-			share2 := &Share2{}
-			err = json.Unmarshal(body, share2)
-
-			if err != nil {
-				logger.Error("error unmarshaling body into share", zap.Error(err))
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				ae := api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("body is not json")
-				w.Write(ae.JSON())
-				return
-			}
-
-			share = &api.Share{
-				ShareWith:         share2.ShareWith,
-				Name:              share2.Name,
-				Description:       share2.Description,
-				ProviderID:        strconv.Itoa(share2.ProviderID),
-				Owner:             share2.Owner,
-				Sender:            share2.Sender,
-				OwnerDisplayName:  share2.OwnerDisplayName,
-				SenderDisplayName: share2.SenderDisplayName,
-				ShareType:         share2.ShareType,
-				ResourceType:      share2.ResourceType,
-				Protocol:          share2.Protocol,
-				ID:                share2.ID,
-				CreatedAt:         share2.CreatedAt,
-			}
-
+			logger.Error("error unmarshaling body into share", zap.Error(err))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			ae := api.NewAPIError(api.APIErrorInvalidParameter).WithMessage("body is not json")
+			w.Write(ae.JSON())
+			return
 		}
 
 		logger.Debug("received share from client", zap.String("share", fmt.Sprintf("%+v", share)))
 
-		// OC sends this with http.....
+		// OC sends this with http..... (TODO: find better way of cleaning this)
 		share.Owner = strings.Replace(share.Owner, "http://", "", 1)
 		share.Owner = strings.Replace(share.Owner, "https://", "", 1)
 		share.Sender = strings.Replace(share.Sender, "http://", "", 1)
 		share.Sender = strings.Replace(share.Sender, "https://", "", 1)
+		share.Owner = strings.Replace(share.Owner, "http:\\/\\/", "", 1)
+		share.Owner = strings.Replace(share.Owner, "https:\\/\\/", "", 1)
+		share.Sender = strings.Replace(share.Sender, "http:\\/\\/", "", 1)
+		share.Sender = strings.Replace(share.Sender, "https:\\/\\/", "", 1)
 
 		owner := strings.Split(share.Owner, "@")
 
