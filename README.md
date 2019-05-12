@@ -42,3 +42,6 @@ Use **--internal-share-manager "python"** and **--share-manager "python"** flags
 
 See `./ocmd -h` for more help.
 
+## CONFIG PROVIDER
+
+curl -X POST -d "domain=XXX" localhost:9994/internal/providers -w "%{http_code}\n"

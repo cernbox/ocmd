@@ -7,12 +7,8 @@ import (
 	"github.com/cernbox/gohub/goconfig"
 	"github.com/cernbox/gohub/gologger"
 	"github.com/cernbox/ocmd/api"
-	"github.com/cernbox/ocmd/api/internal_share_manager_memory"
-	"github.com/cernbox/ocmd/api/internal_share_manager_python"
-	"github.com/cernbox/ocmd/api/provider_authorizer_memory"
-	"github.com/cernbox/ocmd/api/share_manager_memory"
-	"github.com/cernbox/ocmd/api/share_manager_python"
-	"github.com/cernbox/ocmd/api/user_manager_memory"
+	"github.com/cernbox/ocmd/api/provider_manager_mysql"
+	"github.com/cernbox/ocmd/api/share_manager_mysql"
 	"github.com/cernbox/ocmd/handlers"
 
 	"github.com/facebookgo/grace/gracehttp"
@@ -33,52 +29,55 @@ func main() {
 	gc.Add("http-read-timeout", 300, "the maximum duration for reading the entire request, including the body.")
 	gc.Add("http-write-timeout", 300, "the maximum duration for timing out writes of the response.")
 
-	gc.Add("user-manager-memory-identities", "gonzalhu@localhost,kuba@localhost", "List of internal identities.")
+	gc.Add("host", "localhost", "Base hostname of this service")
 
-	gc.Add("provider-authorizer-memory-domains", "localhost::http://localhost:8888/ocm", "List of trusted OpenCloudMesh providers.")
-
-	gc.Add("share-manager", "memory", "Share manager plugin to use. (memory, python)")
-	gc.Add("share-manager-python-script", "/usr/bin/consumer-ocmshare.py", "Location of the python-script to do handle OCM shares as consumer.")
-
-	gc.Add("internal-share-manager", "memory", "Internal share manager plugin to use. (memory, python)")
-	gc.Add("internal-share-manager-python-script", "/usr/bin/internal-ocmshare.py", "Location of the python-script to handle OCM shares as provider.")
+	gc.Add("mysql-hostname", "localhost", "MySQL server hostname.")
+	gc.Add("mysql-port", 3306, "MySQL server port.")
+	gc.Add("mysql-username", "root", "MySQL server username.")
+	gc.Add("mysql-password", "", "MySQL server password.")
+	gc.Add("mysql-db", "cbox", "DB name.")
+	gc.Add("mysql-table", "oc_share", "Table name.")
 
 	gc.BindFlags()
 	gc.ReadConfig()
 
 	logger := gologger.New(gc.GetString("log-level"), gc.GetString("app-log"))
 
-	userManager := user_manager_memory.New(gc.GetString("user-manager-memory-identities"))
-	shareManager := getShareManager(gc, userManager)
-	providerAuthorizer := provider_authorizer_memory.New(gc.GetString("provider-authorizer-memory-domains"))
-	internalShareManager := getInternalShareManager(gc, userManager)
+	opt := &api.MySQLOptions{
+		Hostname: gc.GetString("mysql-hostname"),
+		Port:     gc.GetInt("mysql-port"),
+		Username: gc.GetString("mysql-username"),
+		Password: gc.GetString("mysql-password"),
+		DB:       gc.GetString("mysql-db"),
+		Table:    gc.GetString("mysql-table"),
+		Logger:   logger,
+	}
+	shareManager := share_manager_mysql.New(gc.GetString("host"), opt)
+	providerAuthorizer := provider_manager_mysql.New(opt)
 
 	router := mux.NewRouter()
 
-	router.Handle("/cernbox/ocmwebdav", handlers.WebDAV(logger))
-
-	getAllSharesHandler := handlers.TrustedDomainCheck(logger, providerAuthorizer, handlers.GetAllShares(logger, shareManager))
-	getShareByIDHandler := handlers.TrustedDomainCheck(logger, providerAuthorizer, handlers.GetShareByID(logger, shareManager))
-	newShareHandler := handlers.TrustedDomainCheck(logger, providerAuthorizer, handlers.NewShare(logger, shareManager))
-
-	newInternalShareHandler := handlers.SSOAuthCheck(logger, handlers.NewInternalShare(logger, internalShareManager, providerAuthorizer))
+	getOCMInfoHandler := handlers.GetOCMInfo(logger, gc.GetString("host"))
+	//TODO enable trusted domain check
+	// addShareHandler := handlers.TrustedDomainCheck(logger, providerAuthorizer, handlers.AddShare(logger, shareManager))
+	addShareHandler := handlers.AddShare(logger, shareManager, providerAuthorizer)
+	proxyWebdavHandler := handlers.ProxyWebdav(logger, shareManager, providerAuthorizer)
 
 	// Endpoints as consumer, someone call us and we are compliant with OCM.
-	router.Handle("/ocm/shares", getAllSharesHandler).Methods("GET")
-	router.Handle("/ocm/shares/{id}", getShareByIDHandler).Methods("GET")
-	router.Handle("/ocm/shares", newShareHandler).Methods("POST")
+	router.Handle("/ocm/ocm-provider/", getOCMInfoHandler).Methods("GET")
+	router.Handle("/ocm/shares", addShareHandler).Methods("POST")
 	router.Handle("/ocm/notifications", handlers.NotImplemented(logger)).Methods("GET")
 	router.Handle("/ocm/notifications/{}", handlers.NotImplemented(logger)).Methods("GET")
 	router.Handle("/ocm/notifications", handlers.NotImplemented(logger)).Methods("POST")
 
-	// TODO(labkode): protect with SSO?
-	// This endpoints creates a local share (uri with eos path, access_token)
-	// and send the requests to the other OCM instance.
-	// TODO(labkode): actions on this endpoints should be user-relative
-	router.Handle("/internal/shares", newInternalShareHandler).Methods("POST")
-	//router.Handle("/internal/shares/", handlers.GetInternalShares()).Methods("GET")
-	//	router.Handle("/internal/shares/{id}", handlers.GetInternalSharebyID()).Methods("GET")
-	//	router.Handle("/internal/shares/{id}", handlers.DeleteShareByID()).Methods("DELETE")
+	router.Handle("/ocm/webdav{path:.*}", proxyWebdavHandler)
+
+	// Internal endpoints
+	propagationShareHandler := handlers.PropagateInternalShare(logger, shareManager, providerAuthorizer)
+	addProviderHandler := handlers.AddProvider(logger, providerAuthorizer)
+
+	router.Handle("/internal/shares", propagationShareHandler).Methods("POST")
+	router.Handle("/internal/providers", addProviderHandler).Methods("POST")
 
 	router.Handle("/metrics", promhttp.Handler()) // metrics for the daemon
 
@@ -100,28 +99,4 @@ func main() {
 		logger.Info("server stop listening")
 	}
 
-}
-
-func getShareManager(gc *goconfig.GoConfig, userManager api.UserManager) api.ShareManager {
-	plugin := gc.GetString("share-manager")
-	switch plugin {
-	case "memory":
-		return share_manager_memory.New(userManager)
-	case "python":
-		return share_manager_python.New(gc.GetString("share-manager-python-script"))
-	default:
-		panic("plugin does not exists: " + plugin)
-	}
-}
-
-func getInternalShareManager(gc *goconfig.GoConfig, userManager api.UserManager) api.InternalShareManager {
-	plugin := gc.GetString("internal-share-manager")
-	switch plugin {
-	case "memory":
-		return internal_share_manager_memory.New(userManager)
-	case "python":
-		return internal_share_manager_python.New(gc.GetString("share-manager-python-script"))
-	default:
-		panic("plugin does not exists: " + plugin)
-	}
 }
