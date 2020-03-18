@@ -149,11 +149,10 @@ func GetOCMInfo(logger *zap.Logger, host string) http.Handler {
 			Enabled:    true,
 			APIVersion: "1.0-proposal1",
 			EndPoint:   fmt.Sprintf("https://%s/cernbox/ocm", host),
-			ResourceTypes: []api.ResourceTypes{api.ResourceTypes{
-				Name:       "file",
-				ShareTypes: []string{"user"},
-				Protocols: api.ResourceTypesProtocols{
-					Webdav: "/cernbox/ocm_webdav",
+			ShareTypes: []api.ShareTypes{api.ShareTypes{
+				Name: "file",
+				Protocols: api.ShareTypesProtocols{
+					Webdav: "/cernbox/ocm_webdav/",
 				},
 			}},
 		}
@@ -227,7 +226,7 @@ func AddProvider(logger *zap.Logger, pa api.ProviderAuthorizer) http.Handler {
 			Domain:         domain_without_protocol,
 			APIVersion:     apiInfo.APIVersion,
 			APIEndPoint:    apiInfo.EndPoint,
-			WebdavEndPoint: domain + apiInfo.ResourceTypes[0].Protocols.Webdav, //TODO check this instead of hardcode + support for multiple webdav
+			WebdavEndPoint: domain + apiInfo.ShareTypes[0].Protocols.Webdav, //TODO check this instead of hardcode + support for multiple webdav
 		}
 
 		pa.AddProvider(ctx, internalProvider)
